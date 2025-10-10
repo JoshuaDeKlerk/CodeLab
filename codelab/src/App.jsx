@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+// Components
 import TopNav from "./components/TopNav";
+import Protected from "./components/Protected";
 
-// Page Imports
+// Pages
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -21,10 +23,14 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/app/tracks" element={<Tracks />} />
-            <Route path="/app/exercise/:id" element={<Exercise />} />
-            <Route path="/app/dashboard" element={<Dashboard />} />
             <Route path="/style" element={<StyleGuide />} />
+
+            <Route element={<Protected />}>
+              <Route path="/app/tracks" element={<Tracks />} />
+              <Route path="/app/exercise/:id" element={<Exercise />} />
+              <Route path="/app/dashboard" element={<Dashboard />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
