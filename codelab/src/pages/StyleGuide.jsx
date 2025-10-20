@@ -53,6 +53,7 @@ function hello() {
       <footer className="mt-12 text-center text-xs text-subtext/70">
         Inter for UI • JetBrains Mono for code • Tailwind utilities via custom theme
       </footer>
+      
     </div>
   );
 }
