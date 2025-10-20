@@ -6,7 +6,7 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-20 backdrop-blur bg-bg/80 border-b border-white/10">
-      <div className="mx-auto max-w-6xl px-4 h-14 flex items-center justify-between">
+      <div className="mx-auto max-w-8xl px-20 py-8 flex items-center justify-between">
         <Link to="/" className="font-extrabold text-xl tracking-tight">
           Code<span className="text-accent">Lab</span>
         </Link>
