@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getWorldHeader, getWorldLessons, mergeWithUserProgress } from "../lib/dashboardData";
 import { createWorld, createLesson } from "../lib/adminApi";
+import "../stylesheets/WorldMap.css";
+import TechIcon from "../components/TechIcon";
 
 // Main World Map Page
 export default function WorldMap() {
@@ -47,7 +49,7 @@ export default function WorldMap() {
       </div>
 
       {/* Temporary quick-add world form */}
-      {/* <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-2 gap-4">
         <AddWorld
           onDone={(w) => { setMsg(`✅ World ${w.id} created`); refresh(w.id); }}
           onError={setMsg}
@@ -57,7 +59,7 @@ export default function WorldMap() {
           onDone={(l) => { setMsg(`✅ Lesson ${l.id} created in ${l.worldId}`); refresh(l.worldId); }}
           onError={setMsg}
         />
-      </div> */}
+      </div>
 
       {msg && <div className="text-sm bg-black/30 border border-white/10 rounded p-2">{msg}</div>}
 
@@ -167,11 +169,18 @@ function AddLesson({ defaultWorldId = "W1", onDone, onError }) {
 // Header for the world
 function WorldHeader({ header }) {
   return (
-    <div className="bg-surface/70 rounded-xl border border-white/10 p-4 flex items-center gap-4">
-      <div className="bg-accent/80 text-black font-bold rounded-lg w-10 h-10 grid place-items-center">{header.number}</div>
-      <div className="flex-1">
-        <div className="font-semibold tracking-wide">{header.title}</div>
-        <div className="text-subtext">{header.blurb}</div>
+    <div className="world-header">
+      <div className="world-num">{header.number}</div>
+
+      <div className="content">
+        <div className="world-title">{header.title}</div>
+        <div className="world-blurb">{header.blurb}</div>
+      </div>
+
+      <div className="world-tech">
+        {(header.icons ?? ["css","html","js"]).map(k => (
+          <TechIcon key={k} kind={k} size={50} />
+        ))}
       </div>
     </div>
   );

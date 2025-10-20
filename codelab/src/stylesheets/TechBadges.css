@@ -1,0 +1,15 @@
+.world-tech {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  margin-right: 16px;       
+}
+
+.tech-svg {
+  display: block;
+  width: var(--tech-size, 28px);
+  height: var(--tech-size, 28px);
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,.25));
+  object-fit: contain;
+}
