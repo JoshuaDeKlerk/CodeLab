@@ -12,7 +12,7 @@ export default function TopNav() {
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/app/tracks" className="hover:text-accent">Tracks</Link>
+          <Link to="/app/map" className="hover:text-accent">World Map</Link>
           <Link to="/app/dashboard" className="hover:text-accent">Dashboard</Link>
           <Link to="/style" className="hover:text-accent">Style</Link>
 

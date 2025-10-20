@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 import { exercises } from "../data/exercises";
 
-export default function Tracks() {
+export default function WorldMap() {
   const js = exercises.filter(e => e.language === "javascript");
   const py = exercises.filter(e => e.language === "python");
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Tracks</h1>
+      <h1 className="text-3xl font-bold">World Map</h1>
 
       <section>
         <h2 className="text-xl font-semibold mb-3">JavaScript</h2>

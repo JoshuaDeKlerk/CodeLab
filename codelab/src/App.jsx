@@ -7,11 +7,11 @@ import Protected from "./components/Protected";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Tracks from "./pages/Tracks";
 import Exercise from "./pages/Exercise";
 import Dashboard from "./pages/Dashboard";
 import StyleGuide from "./pages/StyleGuide";
 import NotFound from "./pages/NotFound";
+import WorldMap from "./pages/WorldMap";
 
 export default function App() {
   return (
@@ -26,7 +26,7 @@ export default function App() {
             <Route path="/style" element={<StyleGuide />} />
 
             <Route element={<Protected />}>
-              <Route path="/app/tracks" element={<Tracks />} />
+              <Route path="/app/map" element={<WorldMap />} />
               <Route path="/app/exercise/:id" element={<Exercise />} />
               <Route path="/app/dashboard" element={<Dashboard />} />
             </Route>
