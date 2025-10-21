@@ -4,6 +4,7 @@ import { getWorldHeader, getWorldLessons, mergeWithUserProgress } from "../lib/d
 import { createWorld, createLesson } from "../lib/adminApi";
 import "../stylesheets/WorldMap.css";
 import TechIcon from "../components/TechIcon";
+import LessonCard, { LockedLessonCard } from "../components/LessonCard";
 
 // Main World Map Page
 export default function WorldMap() {
@@ -72,9 +73,9 @@ export default function WorldMap() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((c) =>
           c.lockedUntilLevel > 0 ? (
-            <LockedCard key={c.id} card={c} />
+            <LockedLessonCard key={c.id} card={c} />
           ) : (
-            <Card key={c.id} card={c} />
+            <LessonCard key={c.id} card={c} />
           )
         )}
       </div>
@@ -182,71 +183,6 @@ function WorldHeader({ header }) {
           <TechIcon key={k} kind={k} size={50} />
         ))}
       </div>
-    </div>
-  );
-}
-
-// Card for each lesson
-function Card({ card }) {
-  const stepsDone = Number(card.stepsDone ?? 0);
-  const stepsTotal = Math.max(1, Number(card.stepsTotal ?? 1));
-  const pct = Math.min(100, Math.round((stepsDone / stepsTotal) * 100));
-
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-surface/70 p-4">
-      <div className="text-lg font-semibold">{card.title}</div>
-      <div className="text-sm mt-1">{card.subtitle}</div>
-      {card.text && (
-        <p className="mt-2 text-sm text-subtext" style={{
-          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-        }}>
-          {card.text}
-        </p>
-      )}
-      <div className="mt-3 flex items-center justify-between">
-        <Link to={`/app/exercise/${card.id}`} className="px-3 py-1.5 rounded-md font-medium"
-              style={{ background: card.accent, color: "#0B0F14" }}>
-          {stepsDone > 0 ? "Continue" : "Get Started"}
-        </Link>
-        <div className="text-xs text-subtext">{card.xpTotal}XP In Total</div>
-      </div>
-      <div className="mt-3">
-        <div className="text-xs mb-1 flex items-center justify-between">
-          <span>Progress</span><span>{stepsDone}/{stepsTotal}</span>
-        </div>
-        <Progress value={pct} />
-      </div>
-    </div>
-  );
-}
-
-// Locked Card
-function LockedCard({ card }) {
-  return (
-    <div className="relative overflow-hidden rounded-xl border border-white/10 bg-surface/40 p-4 opacity-60">
-      <div className="text-lg font-semibold">{card.title}</div>
-      <div className="text-sm mt-1 text-subtext">{card.subtitle}</div>
-      <button className="mt-3 px-3 py-1.5 rounded-md bg-white/10 text-subtext cursor-not-allowed" disabled>Get Started</button>
-      <div className="absolute inset-0 grid place-items-center pointer-events-none">
-        <div className="flex items-center gap-2 text-white font-semibold tracking-wide drop-shadow">
-          <span className="inline-block w-5 h-5 rounded-sm bg-white/90 text-black grid place-items-center text-xs">🔒</span>
-          LEVEL {card.lockedUntilLevel} REQUIRED
-        </div>
-      </div>
-      <div className="mt-3">
-        <div className="text-xs mb-1 text-subtext">Progress</div>
-        <Progress value={0} muted />
-      </div>
-    </div>
-  );
-}
-
-// Progress Bar
-function Progress({ value, muted = false }) {
-  return (
-    <div className="h-2 w-full rounded-full bg-white/20 overflow-hidden">
-      <div className="h-full rounded-full transition-all"
-           style={{ width: `${value}%`, background: muted ? "rgba(255,255,255,0.25)" : "linear-gradient(90deg,#4DA3FF,#49D18E)" }} />
     </div>
   );
 }
