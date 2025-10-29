@@ -12,7 +12,6 @@ export default function CodePane({ language, value, onChange, onRun }) {
         onChange={(val) => onChange(val ?? "")}
         beforeMount={setupMonaco}
         onMount={(editor, monaco) => {
-          // Can use Ctrl or Cmd and enter to run the tests
           if (onRun) {
             editor.addCommand(
               monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,

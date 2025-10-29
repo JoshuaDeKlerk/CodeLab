@@ -48,7 +48,6 @@ export default function Exercise() {
     ]);
   }
 
-  // ---------- Fake tests per exercise ----------
   function evaluateJsHello(src) {
     return [
       {

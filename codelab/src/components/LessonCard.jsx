@@ -67,12 +67,13 @@ export default function LessonCard({ card }) {
 
         <div className="lesson-cta-row">
           <Link
-            to={`/app/exercise/${card.id}`}
+            to={`/app/lesson/${card.id}`}
             className="btn-primary"
             style={{ background: card.accent || "#4DA3FF" }}
           >
             {stepsDone > 0 ? "Continue" : "Get Started"}
           </Link>
+
 
           <div className="progress-wrap">
             <div className="progress-meta">

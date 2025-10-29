@@ -4,11 +4,13 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
+// Gets World Header
 export async function getWorldHeader(worldId) {
   const snap = await getDoc(doc(db, "worlds", worldId));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
+// Gets Lessons for a World
 export async function getWorldLessons(worldId) {
   const q = query(
     collection(db, "lessons"),
@@ -19,6 +21,7 @@ export async function getWorldLessons(worldId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() })); 
 }
 
+// Merges lessons with user progress
 export async function mergeWithUserProgress(lessons) {
   const uid = getAuth().currentUser?.uid;
   if (!uid) return lessons.map(l => ({ ...l, stepsDone: 0, completed: false }));

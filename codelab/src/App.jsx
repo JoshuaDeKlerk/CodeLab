@@ -17,6 +17,8 @@ import StyleGuide from "./pages/StyleGuide";
 import NotFound from "./pages/NotFound";
 import WorldMap from "./pages/WorldMap";
 import AdminDashboard from "./pages/AdminDashboard";
+import ModuleReader from "./components/ModuleReader";
+import LessonShell from "./pages/LessonShell";
 
 export default function App() {
   return (
@@ -36,6 +38,8 @@ export default function App() {
               <Route path="/app/map" element={<WorldMap />} />
               <Route path="/app/exercise/:id" element={<Exercise />} />
               <Route path="/app/dashboard" element={<Dashboard />} />
+              <Route path="/app/lesson/:lessonId" element={<LessonShell />} />
+              <Route path="/app/lesson/:lessonId/:moduleId" element={<ModuleReader />} />
             </Route>
 
             {/* Admin-only routes (own guard; no need to nest under Protected) */}
