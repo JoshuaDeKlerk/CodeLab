@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { db } from "../lib/firebase";
 import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 export default function LessonShell() {
-  const { lessonId } = useParams();
+  const { lessonId } = useParams(); // "L1-1"
   const [lesson, setLesson] = useState(null);
   const [modules, setModules] = useState([]);
   const [err, setErr] = useState("");
@@ -13,15 +14,23 @@ export default function LessonShell() {
     async function load() {
       try {
         setErr("");
-        const lref = doc(db, "lessons", String(lessonId));
+        const uid = getAuth().currentUser?.uid;
+        if (!uid) { setErr("Not signed in."); return; }
+
+        // Simple MVP: only W1
+        const wref = doc(db, `users/${uid}/journeys/default/worlds/W1`);
+        const wsnap = await getDoc(wref);
+        if (!wsnap.exists()) { setErr("World not found."); return; }
+
+        const lref = doc(db, `users/${uid}/journeys/default/worlds/W1/lessons/${lessonId}`);
         const lsnap = await getDoc(lref);
         if (!lsnap.exists()) { setErr("Lesson not found."); return; }
         setLesson(lsnap.data());
 
-        const mref = collection(db, "lessons", String(lessonId), "modules");
+        const mref = collection(db, `users/${uid}/journeys/default/worlds/W1/lessons/${lessonId}/modules`);
         const qref = query(mref, orderBy("order", "asc"));
         const msnap = await getDocs(qref);
-        setModules(msnap.docs.map(d => d.data()));
+        setModules(msnap.docs.map((d) => d.data()));
       } catch (e) {
         setErr(e?.message || "Failed to load lesson.");
       }
@@ -41,7 +50,7 @@ export default function LessonShell() {
 
       <div className="space-y-3">
         {modules.length === 0 && <div className="opacity-70">No modules yet.</div>}
-        {modules.map(mod => (
+        {modules.map((mod) => (
           <Link
             key={mod.id}
             to={`/app/lesson/${lessonId}/${mod.id}`}
