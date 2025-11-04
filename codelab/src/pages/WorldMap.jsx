@@ -1,12 +1,12 @@
-// WorldMap.jsx
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   hasJourney,
   startJourney,
   resetJourney,
-  getUserWorldHeader,
+  getUserWorldHeader,    
   getUserWorldLessons,
+  getUserWorlds,           // ⬅️ new
 } from "../lib/journeyApi";
 import { mergeWithUserProgress } from "../lib/dashboardData";
 import "../stylesheets/WorldMap.css";
@@ -75,38 +75,49 @@ function StartJourneyModal({ open, onClose, onCreated }) {
 }
 
 export default function WorldMap() {
-  const [header, setHeader] = useState(null);
-  const [cards, setCards] = useState([]);
+  const [worlds, setWorlds] = useState([]); 
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [needsJourney, setNeedsJourney] = useState(false);
   const [modal, setModal] = useState(false);
 
-  async function refresh(worldId = "W1") {
+  async function refresh() {
     setLoading(true);
     setMsg("");
     try {
       const exists = await hasJourney();
       setNeedsJourney(!exists);
       if (!exists) {
-        setHeader(null);
-        setCards([]);
+        setWorlds([]);
         return;
       }
 
-      const [h, ls] = await Promise.all([
-        getUserWorldHeader(worldId),
-        getUserWorldLessons(worldId),
-      ]);
-      setHeader(h);
+      // 1) Get all world headers
+      const headers = await getUserWorlds(); 
+      if (!headers || headers.length === 0) {
+        setMsg("No worlds found for your journey yet.");
+        setWorlds([]);
+        return;
+      }
 
-      const merged = await mergeWithUserProgress(ls);
-      setCards(merged);
+      // 2) For each world, fetch lessons and merge with user progress
+      const worldsWithLessons = await Promise.all(
+        headers.map(async (h) => {
+          const lessons = await getUserWorldLessons(h.id);
+          const merged = await mergeWithUserProgress(lessons);
+          return { header: h, cards: merged };
+        })
+      );
 
-      if (!h) setMsg(`No world header found for ${worldId}`);
-      if (h && merged.length === 0) setMsg(`No lessons found for ${worldId}`);
+      setWorlds(worldsWithLessons);
+
+      // 3) UX message if some worlds are empty
+      const empty = worldsWithLessons.filter((w) => w.cards.length === 0);
+      if (empty.length === worldsWithLessons.length) {
+        setMsg("Worlds loaded, but no lessons were found.");
+      }
     } catch (err) {
-      setMsg("❌ " + (err?.message ?? "Failed to load world"));
+      setMsg("❌ " + (err?.message ?? "Failed to load worlds"));
     } finally {
       setLoading(false);
     }
@@ -163,17 +174,13 @@ export default function WorldMap() {
         </div>
       )}
 
-      {loading && <div className="text-subtext text-sm">Loading world…</div>}
-      {header && <WorldHeader header={header} />}
+      {loading && <div className="text-subtext text-sm">Loading worlds…</div>}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {cards.map((c) =>
-          c.lockedUntilLevel > 0 ? (
-            <LockedLessonCard key={c.id} card={c} />
-          ) : (
-            <LessonCard key={c.id} card={c} />
-          )
-        )}
+      {/* Render ALL worlds */}
+      <div className="space-y-10">
+        {worlds.map((w) => (
+          <WorldSection key={w.header.id} header={w.header} cards={w.cards} />
+        ))}
       </div>
 
       {msg && <div className="text-subtext">{msg}</div>}
@@ -220,7 +227,7 @@ export default function WorldMap() {
             className="px-2 py-1 rounded-md border border-white/10"
             onClick={async () => {
               try {
-                await startJourney("Test Gemini", { noStorage: true }); // storage ignored for now
+                await startJourney("Test Gemini", { noStorage: true });
                 await refresh();
               } catch {}
             }}
@@ -230,6 +237,23 @@ export default function WorldMap() {
         </div>
       </div>
     </div>
+  );
+}
+
+function WorldSection({ header, cards }) {
+  return (
+    <section className="space-y-4">
+      <WorldHeader header={header} />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {cards.map((c) =>
+          c.lockedUntilLevel > 0 ? (
+            <LockedLessonCard key={c.id} card={c} />
+          ) : (
+            <LessonCard key={c.id} card={c} />
+          )
+        )}
+      </div>
+    </section>
   );
 }
 
