@@ -258,7 +258,7 @@ export default function ModuleReader() {
             <p className="mt-2 text-xs text-subtext">{hint}</p>
           )}
           {err && (
-            <p className="mt-2 text-xs text-rose-300">⚠ {err}</p>
+            <p className="mt-2 text-xs text-rose-300">Error {err}</p>
           )}
         </div>
       </div>

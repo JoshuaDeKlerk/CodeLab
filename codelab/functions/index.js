@@ -12,8 +12,8 @@ const { getStorage } = require("firebase-admin/storage");
 // ============ Global config ============
 setGlobalOptions({
   region: "europe-west1",
-  timeoutSeconds: 300,
-  memory: "1GiB",
+  timeoutSeconds: 540,  
+  memory: "2GiB",       
 });
 
 // Resolve bucket name (supports explicit env override via MODULE_BUCKET)
