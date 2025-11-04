@@ -2,78 +2,15 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   hasJourney,
-  startJourney,
   getUserWorldLessons,
   getUserWorlds,
 } from "../lib/journeyApi";
 import "../stylesheets/WorldMap.css";
 import TechIcon from "../components/TechIcon";
 import LessonCard, { LockedLessonCard } from "../components/LessonCard";
+import StartJourneyModal from "../components/StartJourneyModal"; 
 
-function StartJourneyModal({ open, onClose, onCreated }) {
-  const [topic, setTopic] = useState("Full-Stack Development (HTML, CSS, JS, React)");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-
-  if (!open) return null;
-
-  const modal = (
-    <div
-      className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-surface/90 border border-white/10 rounded-xl w-full max-w-lg p-5 space-y-4 pointer-events-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-xl font-bold">Start your journey</h2>
-        <p className="text-subtext text-sm">
-          Tell the AI what you want to learn. We’ll generate your first world and lessons.
-        </p>
-        <input
-          className="w-full bg-white/10 rounded p-2"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          placeholder="e.g., Frontend web from zero"
-        />
-        {err && <div className="text-red-400 text-sm">{err}</div>}
-        <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-2 rounded-md border border-white/10"
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                setBusy(true);
-                setErr("");
-                const r = await startJourney(topic);
-                onCreated?.(r?.data);
-              } catch (e) {
-                setErr(e?.message || "Failed to create journey.");
-              } finally {
-                setBusy(false);
-              }
-            }}
-            disabled={busy}
-            className="px-3 py-2 rounded-md bg-accent text-bg"
-          >
-            {busy ? "Creating…" : "Generate"}
-          </button>
-        </div>
-        <p className="text-xs text-subtext/70">Note: You can have one active journey.</p>
-      </div>
-    </div>
-  );
-
-  return createPortal(modal, document.body);
-}
-
+// World Map Page Component
 export default function WorldMap() {
   const [worlds, setWorlds] = useState([]);
   const [msg, setMsg] = useState("");
@@ -124,30 +61,42 @@ export default function WorldMap() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Your Learning Journey</h1>
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="text-sm px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/10"
-        >
-          Reload
-        </button>
+    <div className="space-y-10 md:space-y-12">
+      {/* Header row */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+            Your Learning Journey
+          </h1>
+          <p className="text-subtext text-sm md:text-[15px]">
+            Worlds group your lessons by theme. Unlock new lessons as you progress.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => refresh()}
+            className="text-sm px-3.5 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 ring-1 ring-white/5 transition"
+          >
+            Reload
+          </button>
+        </div>
       </div>
 
+      {/* Empty state */}
       {needsJourney && (
-        <div className="rounded-xl border border-white/10 p-6 flex items-center justify-between relative">
-          <div>
-            <div className="text-xl font-semibold">No journey yet</div>
-            <p className="text-subtext">
+        <div className="rounded-2xl border border-white/10 p-5 md:p-6 bg-white/[0.03] flex flex-col gap-4 md:flex-row md:items-center md:justify-between relative">
+          <div className="space-y-1">
+            <div className="text-lg md:text-xl font-semibold">No journey yet</div>
+            <p className="text-subtext text-sm">
               Click below to generate a personalised world with lessons.
             </p>
           </div>
           <button
             type="button"
             onClick={() => setModal(true)}
-            className="btn-primary"
+            className="px-4 py-2.5 rounded-lg bg-accent text-bg font-semibold shadow-sm shadow-accent/30 hover:opacity-90 transition"
             style={{ background: "#4DA3FF" }}
           >
             Start your journey
@@ -155,15 +104,20 @@ export default function WorldMap() {
         </div>
       )}
 
-      {loading && <div className="text-subtext text-sm">Loading worlds…</div>}
+      {loading && (
+        <div className="text-subtext text-sm">
+          Loading worlds…
+        </div>
+      )}
 
-      <div className="space-y-10">
+      {/* Worlds */}
+      <div className="space-y-8 md:space-y-10">
         {worlds.map((w) => (
           <WorldSection key={w.header.id} header={w.header} cards={w.cards} />
         ))}
       </div>
 
-      {msg && <div className="text-subtext">{msg}</div>}
+      {msg && <div className="text-subtext pt-2">{msg}</div>}
 
       <StartJourneyModal
         open={modal}
@@ -177,11 +131,12 @@ export default function WorldMap() {
   );
 }
 
+// World Section Component
 function WorldSection({ header, cards }) {
   return (
-    <section className="space-y-4">
+    <section className="space-y-5 md:space-y-6">
       <WorldHeader header={header} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 md:gap-6">
         {cards.map((c) =>
           c.lockedUntilLevel > 0 ? (
             <LockedLessonCard key={c.id} card={c} />
@@ -194,6 +149,7 @@ function WorldSection({ header, cards }) {
   );
 }
 
+// World Header Component
 function WorldHeader({ header }) {
   return (
     <div className="world-header">

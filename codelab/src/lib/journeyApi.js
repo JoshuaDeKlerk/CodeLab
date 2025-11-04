@@ -2,6 +2,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions, auth, db } from "./firebase";
 import { doc, getDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 
+// Ping the backend service
 export async function ping() {
   const fn = httpsCallable(functions, "ping");
   const r = await fn();

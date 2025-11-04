@@ -6,7 +6,6 @@ export default function Landing() {
 
   return (
     <div className="relative overflow-hidden">
-      {/* Subtle background glow */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div
           className="absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[60rem] rounded-full blur-3xl"
@@ -17,7 +16,6 @@ export default function Landing() {
         />
       </div>
 
-      {/* Hero */}
       <section className="text-center py-20 md:py-28">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-subtext">
           <span className="h-2 w-2 rounded-full bg-accent" />
@@ -55,7 +53,6 @@ export default function Landing() {
           </Link>
         </div>
 
-        {/* Code preview card (static) */}
         <div className="mx-auto mt-12 max-w-3xl rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left">
           <div className="mb-3 flex items-center gap-2 text-xs text-subtext">
             <span className="h-2 w-2 rounded-full bg-[#ff5f56]" />
@@ -64,18 +61,19 @@ export default function Landing() {
             <span className="ml-2 opacity-70">/app/learn.jsx</span>
           </div>
           <pre className="overflow-x-auto rounded-lg bg-[#0f172a] p-4 text-sm leading-relaxed">
-            <code>{`function greet(name) {
-  if (!name) return "Hello, world!";
-  return \`Hello, \${name}!\`;
-}
+            <code>
+              {`function greet(name) {
+                if (!name) return "Hello, world!";
+                return \`Hello, \${name}!\`;
+              }
 
-// Try it yourself ↓
-console.log(greet("Coder"));`}</code>
+              // Try it yourself ↓
+              console.log(greet("Coder"));`}
+            </code>
           </pre>
         </div>
       </section>
 
-      {/* Value props */}
       <section className="mx-auto max-w-6xl px-6 py-10 md:py-14">
         <div className="grid gap-6 md:grid-cols-3">
           <Feature
@@ -93,7 +91,6 @@ console.log(greet("Coder"));`}</code>
         </div>
       </section>
 
-      {/* How it works */}
       <section className="mx-auto max-w-5xl px-6 py-10 md:py-14">
         <h2 className="text-2xl font-bold text-center">How it works</h2>
         <ol className="mx-auto mt-6 grid gap-4 md:grid-cols-3">
@@ -103,7 +100,6 @@ console.log(greet("Coder"));`}</code>
         </ol>
       </section>
 
-      {/* Social proof */}
       <section className="mx-auto max-w-4xl px-6 py-10 md:py-16">
         <figure className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <blockquote className="text-lg text-subtext">
@@ -122,7 +118,6 @@ console.log(greet("Coder"));`}</code>
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="pb-20 text-center">
         <h3 className="text-2xl font-bold">Ready to start?</h3>
         <p className="mt-2 text-subtext">Join and generate your first learning world in seconds.</p>
@@ -145,6 +140,7 @@ console.log(greet("Coder"));`}</code>
   );
 }
 
+// Feature box component
 function Feature({ title, blurb }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -154,6 +150,7 @@ function Feature({ title, blurb }) {
   );
 }
 
+// Step component for "How it works" section
 function Step({ n, title, desc }) {
   return (
     <li className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -168,6 +165,7 @@ function Step({ n, title, desc }) {
   );
 }
 
+// Badge component for tech stack
 function Badge({ children }) {
   return (
     <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
