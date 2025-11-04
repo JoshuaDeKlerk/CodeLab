@@ -3,12 +3,9 @@ import { createPortal } from "react-dom";
 import {
   hasJourney,
   startJourney,
-  resetJourney,
-  getUserWorldHeader,    
   getUserWorldLessons,
-  getUserWorlds,           // ⬅️ new
+  getUserWorlds,
 } from "../lib/journeyApi";
-import { mergeWithUserProgress } from "../lib/dashboardData";
 import "../stylesheets/WorldMap.css";
 import TechIcon from "../components/TechIcon";
 import LessonCard, { LockedLessonCard } from "../components/LessonCard";
@@ -21,7 +18,10 @@ function StartJourneyModal({ open, onClose, onCreated }) {
   if (!open) return null;
 
   const modal = (
-    <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div
         className="bg-surface/90 border border-white/10 rounded-xl w-full max-w-lg p-5 space-y-4 pointer-events-auto"
         onClick={(e) => e.stopPropagation()}
@@ -75,7 +75,7 @@ function StartJourneyModal({ open, onClose, onCreated }) {
 }
 
 export default function WorldMap() {
-  const [worlds, setWorlds] = useState([]); 
+  const [worlds, setWorlds] = useState([]);
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [needsJourney, setNeedsJourney] = useState(false);
@@ -92,26 +92,22 @@ export default function WorldMap() {
         return;
       }
 
-      // 1) Get all world headers
-      const headers = await getUserWorlds(); 
+      const headers = await getUserWorlds();
       if (!headers || headers.length === 0) {
         setMsg("No worlds found for your journey yet.");
         setWorlds([]);
         return;
       }
 
-      // 2) For each world, fetch lessons and merge with user progress
       const worldsWithLessons = await Promise.all(
         headers.map(async (h) => {
           const lessons = await getUserWorldLessons(h.id);
-          const merged = await mergeWithUserProgress(lessons);
-          return { header: h, cards: merged };
+          return { header: h, cards: lessons };
         })
       );
 
       setWorlds(worldsWithLessons);
 
-      // 3) UX message if some worlds are empty
       const empty = worldsWithLessons.filter((w) => w.cards.length === 0);
       if (empty.length === worldsWithLessons.length) {
         setMsg("Worlds loaded, but no lessons were found.");
@@ -140,28 +136,13 @@ export default function WorldMap() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          className="text-sm px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/10"
-          onClick={async () => {
-            try {
-              await resetJourney();
-              await refresh();
-            } catch (e) {
-              console.error(e);
-            }
-          }}
-        >
-          ResetJourney
-        </button>
-      </div>
-
       {needsJourney && (
         <div className="rounded-xl border border-white/10 p-6 flex items-center justify-between relative">
           <div>
             <div className="text-xl font-semibold">No journey yet</div>
-            <p className="text-subtext">Click below to generate a personalised world with lessons.</p>
+            <p className="text-subtext">
+              Click below to generate a personalised world with lessons.
+            </p>
           </div>
           <button
             type="button"
@@ -176,7 +157,6 @@ export default function WorldMap() {
 
       {loading && <div className="text-subtext text-sm">Loading worlds…</div>}
 
-      {/* Render ALL worlds */}
       <div className="space-y-10">
         {worlds.map((w) => (
           <WorldSection key={w.header.id} header={w.header} cards={w.cards} />
@@ -193,49 +173,6 @@ export default function WorldMap() {
           await refresh();
         }}
       />
-
-      {/* Debug helpers */}
-      <div className="flex gap-2 justify-between items-center text-xs text-subtext mt-2">
-        <span>Debug:</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className="px-2 py-1 rounded-md border border-white/10"
-            onClick={async () => {
-              try {
-                await startJourney("Test DRY", { dryRun: true });
-                await refresh();
-              } catch {}
-            }}
-          >
-            DryRun
-          </button>
-          <button
-            type="button"
-            className="px-2 py-1 rounded-md border border-white/10"
-            onClick={async () => {
-              try {
-                await startJourney("Test FAKE", { noGemini: true });
-                await refresh();
-              } catch {}
-            }}
-          >
-            NoGemini
-          </button>
-          <button
-            type="button"
-            className="px-2 py-1 rounded-md border border-white/10"
-            onClick={async () => {
-              try {
-                await startJourney("Test Gemini", { noStorage: true });
-                await refresh();
-              } catch {}
-            }}
-          >
-            NoStorage
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

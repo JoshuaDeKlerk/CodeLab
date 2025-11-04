@@ -1,10 +1,8 @@
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { isAdmin } from "../config/admin";
+import { useAuth } from "../context/useAuth";
 
 export default function TopNav() {
   const { user, logout } = useAuth();
-  const uid = user?.uid;
 
   return (
     <header className="sticky top-0 z-20 backdrop-blur bg-bg/80 border-b border-white/10">
@@ -14,18 +12,19 @@ export default function TopNav() {
         </Link>
 
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/app/map" className="hover:text-accent">World Map</Link>
-          <Link to="/app/dashboard" className="hover:text-accent">Dashboard</Link>
+          {/* Public */}
+          <Link to="/style" className="hover:text-accent">Style Guide</Link>
 
-          {/* Admin link only if UID matches .env */}
-          {isAdmin(uid) && (
-            <Link to="/app/admin" className="hover:text-accent">Admin</Link>
-          )}
+          {/* Authenticated-only */}
+          {user && <Link to="/app/map" className="hover:text-accent">World Map</Link>}
 
           {!user ? (
             <>
               <Link to="/login" className="hover:text-accent">Login</Link>
-              <Link to="/signup" className="px-3 py-1 rounded-lg bg-accent text-bg font-semibold hover:opacity-90">
+              <Link
+                to="/signup"
+                className="px-3 py-1 rounded-lg bg-accent text-bg font-semibold hover:opacity-90"
+              >
                 Sign up
               </Link>
             </>

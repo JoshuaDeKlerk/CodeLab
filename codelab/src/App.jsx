@@ -1,24 +1,16 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-// Components
 import TopNav from "./components/TopNav";
 import Protected from "./components/Protected";
 
-// Routes
-import AdminRoute from "./routes/AdminRoute"; 
-
-// Pages
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Exercise from "./pages/Exercise";
-import Dashboard from "./pages/Dashboard";
 import StyleGuide from "./pages/StyleGuide";
-import NotFound from "./pages/NotFound";
 import WorldMap from "./pages/WorldMap";
-import AdminDashboard from "./pages/AdminDashboard";
-import ModuleReader from "./components/ModuleReader";
+import NotFound from "./pages/NotFound";
 import LessonShell from "./pages/LessonShell";
+import ModuleReader from "./components/ModuleReader"; 
 
 export default function App() {
   return (
@@ -33,18 +25,15 @@ export default function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/style" element={<StyleGuide />} />
 
-            {/* Authenticated (non-admin) app routes */}
+            {/* Authenticated */}
             <Route element={<Protected />}>
               <Route path="/app/map" element={<WorldMap />} />
-              <Route path="/app/exercise/:id" element={<Exercise />} />
-              <Route path="/app/dashboard" element={<Dashboard />} />
               <Route path="/app/lesson/:lessonId" element={<LessonShell />} />
-              <Route path="/app/lesson/:lessonId/:moduleId" element={<ModuleReader />} />
-            </Route>
-
-            {/* Admin-only routes (own guard; no need to nest under Protected) */}
-            <Route path="/app/admin" element={<AdminRoute />}>
-              <Route index element={<AdminDashboard />} />
+              <Route
+                path="/app/lesson/:lessonId/module/:moduleId"
+                element={<ModuleReader />}
+              />
+              <Route path="/app" element={<WorldMap />} />
             </Route>
 
             {/* 404 */}

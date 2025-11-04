@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useEffect, useState } from "react";
 import { auth } from "../lib/firebase";
 import {
   onAuthStateChanged,
@@ -8,9 +9,10 @@ import {
   updateProfile,
 } from "firebase/auth";
 
-const AuthCtx = createContext(null);
+// Named export so the hook file can import it
+export const AuthCtx = createContext(null);
 
-export function AuthProvider({ children }) {
+export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [initialising, setInitialising] = useState(true);
 
@@ -27,9 +29,11 @@ export function AuthProvider({ children }) {
     if (name) await updateProfile(cred.user, { displayName: name });
     return cred.user;
   }
+
   function login({ email, password }) {
     return signInWithEmailAndPassword(auth, email, password);
   }
+
   function logout() {
     return signOut(auth);
   }
@@ -39,10 +43,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthCtx.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthCtx);
-  if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
-  return ctx;
 }

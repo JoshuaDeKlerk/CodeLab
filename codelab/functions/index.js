@@ -9,14 +9,14 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 
-// Regional, timeout, memory
+// ============ Global config ============
 setGlobalOptions({
   region: "europe-west1",
   timeoutSeconds: 300,
   memory: "1GiB",
 });
 
-// Bucket resolution
+// Resolve bucket name (supports explicit env override via MODULE_BUCKET)
 function resolveBucketName() {
   if (process.env.MODULE_BUCKET && process.env.MODULE_BUCKET.trim()) {
     return process.env.MODULE_BUCKET.trim();
@@ -37,21 +37,17 @@ function resolveBucketName() {
 
 const CONTENT_BUCKET = resolveBucketName();
 
-// Cold start log
 logger.info("Cold start — bucket resolution", {
   CONTENT_BUCKET,
   FIREBASE_CONFIG: process.env.FIREBASE_CONFIG ? "present" : "missing",
   GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT || null,
 });
 
-// Firebase Admin initialization
-initializeApp({
-  storageBucket: CONTENT_BUCKET || undefined,
-});
-
+// Firebase Admin init
+initializeApp({ storageBucket: CONTENT_BUCKET || undefined });
 const db = getFirestore();
 
-// Lazy storage bucket getter
+// Lazy bucket getter
 let _bucket = null;
 function getBucket() {
   if (!_bucket) {
@@ -61,12 +57,12 @@ function getBucket() {
   return _bucket;
 }
 
-// Secret for gemini API key
+// Secrets
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
-// Write JSON to Storage
+// Storage helper
 async function putJson(path, data) {
-  const bucket = getBucket(); // lazy
+  const bucket = getBucket();
   if (!bucket || !bucket.name) {
     logger.error("Bucket not configured or missing name", {
       resolvedName: bucket && bucket.name,
@@ -95,7 +91,7 @@ async function putJson(path, data) {
   }
 }
 
-// Model Helpers
+// ============ Gemini helper ============
 const MODEL_CANDIDATES = [
   "gemini-2.5-flash",
   "gemini-1.5-flash-002",
@@ -142,7 +138,7 @@ async function generateJsonWithGemini(apiKey, prompt) {
   );
 }
 
-// Sanitization helpers
+// ============ Sanitizers ============
 const ACCENT = "#4DA3FF";
 const WORLD_MIN = 3, WORLD_MAX = 5;
 const LESSON_MIN = 3, LESSON_MAX = 6;
@@ -155,10 +151,7 @@ const ALLOWED_TECH = new Set([
   "uiux","testing","security","ml","ai","data","all"
 ]);
 
-function clamp(n, lo, hi) {
-  n = Number(n || 0);
-  return Math.max(lo, Math.min(hi, n));
-}
+function clamp(n, lo, hi) { n = Number(n || 0); return Math.max(lo, Math.min(hi, n)); }
 function toWorldId(i) { return `W${i + 1}`; }
 function isWorldId(x) { return /^W\d+$/.test(String(x)); }
 function toLessonId(worldNumber, idx) { return `L${worldNumber}-${idx + 1}`; }
@@ -170,7 +163,7 @@ function uniqBy(arr, keyFn) {
 }
 function pickIcons(list) {
   const arr = Array.isArray(list) ? list.filter(x => ALLOWED_TECH.has(x)) : [];
-  return arr.slice(0, 4); // 1–4 icons
+  return arr.slice(0, 4);
 }
 
 function sanitizeJourney(j) {
@@ -230,13 +223,13 @@ function sanitizeJourney(j) {
     lessons = uniqBy(lessons.sort((a, b) => a.order - b.order), l => l.id);
 
     const blurb = String(w?.blurb || "").slice(0, 220);
-    const title = String(w?.title || `World ${number}`).slice(0, 80);
+    const titleWorld = String(w?.title || `World ${number}`).slice(0, 80);
     const icons = pickIcons(w?.icons && w.icons.length ? w.icons : ["html","css","js"]);
 
     return {
       id,
       number,
-      title,
+      title: titleWorld,
       blurb,
       icons,
       accent: ACCENT,
@@ -294,7 +287,7 @@ function sanitizeModuleContent(content, fallbackTitle, badge) {
           case "react":  b.text = "function Hello(){ return <h1>Hello</h1>; }\nexport default Hello;"; break;
           case "node":   b.text = "console.log('Node ready');"; break;
           case "sql":    b.text = "SELECT 1 AS ready;"; break;
-          default:       return false; // conceptual: drop empty code
+          default:       return false;
         }
       }
     }
@@ -309,16 +302,16 @@ function sanitizeModuleContent(content, fallbackTitle, badge) {
   return { title, blocks };
 }
 
-// Health Check
+// Health check
 exports.ping = onCall(() => "pong");
 
-// Generate the Journey
-exports.generateJourney = onCall({ secrets: [GEMINI_API_KEY] }, async (request) => {
+// Generate the Journey (Gemini only)
+exports.generateJourney = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 540, memory: "2GiB" }, async (request) => {
   try {
     const uid = request.auth && request.auth.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Login required.");
 
-    const { topic: rawTopic, dryRun, noGemini } = request.data || {};
+    const { topic: rawTopic } = request.data || {};
     const topic = String(rawTopic ?? "").trim() || "Full-Stack Foundations";
 
     const journeyRef = db.doc(`users/${uid}/journeys/default`);
@@ -328,129 +321,90 @@ exports.generateJourney = onCall({ secrets: [GEMINI_API_KEY] }, async (request) 
 
     const now = FieldValue.serverTimestamp();
 
-    if (dryRun === true) {
-      await journeyRef.set({ id: "default", topic, createdAt: now, worldCount: 0 });
-      return { ok: true, journeyId: "default", worldIds: [], mode: "dryRun" };
+    const prompt = `
+You are an expert curriculum designer generating STRICT JSON only.
+
+TASK
+Create a beginner-friendly learning journey with 3–5 WORLDS.
+- Each world has 3–6 lessons.
+- Each lesson has 5–10 modules (metadata only).
+
+OUTPUT JSON SHAPE (no extra fields, no comments):
+{
+  "topic": string,
+  "worlds": [
+    {
+      "id": string,
+      "number": number,
+      "title": string,
+      "blurb": string,
+      "icons": (
+        "html"|"css"|"js"|"typescript"|"react"|"nextjs"|"node"|"express"|
+        "python"|"django"|"flask"|"java"|"kotlin"|"swift"|"csharp"|"dotnet"|
+        "sql"|"postgres"|"mongodb"|"git"|"linux"|"docker"|"aws"|"firebase"|
+        "uiux"|"testing"|"security"|"ml"|"ai"|"data"
+      )[],
+      "accent": "#4DA3FF",
+      "lessons": [
+        {
+          "id": string,
+          "order": number,
+          "title": string,
+          "subtitle": string,
+          "text": string,
+          "xpTotal": number,
+          "stepsTotal": number,
+          "badge": (
+            "html"|"css"|"js"|"typescript"|"react"|"nextjs"|"node"|"express"|
+            "python"|"django"|"flask"|"java"|"kotlin"|"swift"|"csharp"|"dotnet"|
+            "sql"|"postgres"|"mongodb"|"git"|"linux"|"docker"|"aws"|"firebase"|
+            "uiux"|"testing"|"security"|"ml"|"ai"|"data"|"all"
+          ),
+          "accent": "#4DA3FF",
+          "modules": [
+            { "id": string, "title": string, "order": number, "xp": number }
+          ]
+        }
+      ]
     }
+  ]
+}
+
+CONSTRAINTS
+- Topic: "${topic}"
+- Generate 3–5 worlds. World ids must be "W1","W2","W3",... and numbers must match.
+- All accents (world + lesson) MUST be "#4DA3FF".
+- Each world: 1–4 icons from the allowed set, relevant to the content.
+- Each lesson: badge from allowed set and matches lesson focus.
+- Lesson ids: "L{worldNumber}-{lessonIndex}", unique within world; orders strictly ascending.
+- Modules: 5–10 per lesson; orders strictly ascending; no duplicate ids/titles within a lesson.
+- Keep strings short and student-friendly. Ensure module xp sums ≈ xpTotal (±20%).
+- Return ONLY valid JSON (no prose, markdown, or trailing commas).
+
+QUALITY RUBRIC
+- Counts respected; ids/orders consistent; icons relevant; titles specific; subtitles outcome-based.
+- XP sums roughly match xpTotal.
+`.trim();
+
+    const apiKey = GEMINI_API_KEY.value();
+    if (!apiKey) throw new HttpsError("failed-precondition", "GEMINI_API_KEY missing");
+
+    const r = await generateJsonWithGemini(apiKey, prompt);
+    logger.info("Gemini model used (generateJourney)", { model: r.modelName });
 
     let journey;
-    if (noGemini === true) {
-      journey = sanitizeJourney({
-        topic,
-        worlds: [
-          {
-            id: "W1",
-            number: 1,
-            title: "Getting Started",
-            blurb: "Kick off your journey with approachable fundamentals.",
-            icons: ["html","css","js"],
-            accent: ACCENT,
-            lessons: [
-              {
-                id: "L1-1",
-                order: 1,
-                title: "Welcome to Web",
-                subtitle: "How the web works and why HTML matters",
-                text: "Browsers render documents; HTML gives them structure.",
-                xpTotal: 120, stepsTotal: 6, badge: "html", accent: ACCENT,
-                modules: [
-                  { id: "introduction", title: "Introduction", order: 1, xp: 10 },
-                  { id: "browsers", title: "How Browsers Work", order: 2, xp: 10 },
-                  { id: "html-skeleton", title: "Create an HTML Skeleton", order: 3, xp: 10 },
-                  { id: "tags", title: "Add Basic Tags", order: 4, xp: 10 },
-                  { id: "review", title: "Quick Review", order: 5, xp: 10 },
-                ]
-              }
-            ]
-          }
-        ]
+    try {
+      const parsed = JSON.parse(r.text || "");
+      journey = sanitizeJourney(parsed);
+    } catch (e) {
+      logger.error("JSON parse/sanitize failed (generateJourney)", {
+        preview: (r.text || "").slice(0, 1000),
+        message: e?.message,
       });
-    } else {
-      const prompt = `
-      You are an expert curriculum designer generating STRICT JSON only.
-
-      TASK
-      Create a beginner-friendly learning journey with 3–5 WORLDS.
-      - Each world has 3–6 lessons.
-      - Each lesson has 5–10 modules (metadata only).
-
-      OUTPUT JSON SHAPE (no extra fields, no comments):
-      {
-        "topic": string,
-        "worlds": [
-          {
-            "id": string,
-            "number": number,
-            "title": string,
-            "blurb": string,
-            "icons": (
-              "html"|"css"|"js"|"typescript"|"react"|"nextjs"|"node"|"express"|
-              "python"|"django"|"flask"|"java"|"kotlin"|"swift"|"csharp"|"dotnet"|
-              "sql"|"postgres"|"mongodb"|"git"|"linux"|"docker"|"aws"|"firebase"|
-              "uiux"|"testing"|"security"|"ml"|"ai"|"data"
-            )[],
-            "accent": "#4DA3FF",
-            "lessons": [
-              {
-                "id": string,      // "L{worldNumber}-{lessonIndex}"
-                "order": number,   // 1..n ascending within the world
-                "title": string,
-                "subtitle": string,
-                "text": string,
-                "xpTotal": number,     // 100–150
-                "stepsTotal": number,  // 4–8
-                "badge": (
-                  "html"|"css"|"js"|"typescript"|"react"|"nextjs"|"node"|"express"|
-                  "python"|"django"|"flask"|"java"|"kotlin"|"swift"|"csharp"|"dotnet"|
-                  "sql"|"postgres"|"mongodb"|"git"|"linux"|"docker"|"aws"|"firebase"|
-                  "uiux"|"testing"|"security"|"ml"|"ai"|"data"|"all"
-                ),
-                "accent": "#4DA3FF",
-                "modules": [
-                  { "id": string, "title": string, "order": number, "xp": number } // xp 5–25
-                ]
-              }
-            ]
-          }
-        ]
-      }
-
-      CONSTRAINTS
-      - Topic: "${topic}"
-      - Generate 3–5 worlds. World ids must be "W1","W2","W3",... and numbers must match.
-      - All accents (world + lesson) MUST be "#4DA3FF".
-      - Each world: 1–4 icons from the allowed set, relevant to the content.
-      - Each lesson: badge from allowed set and matches lesson focus.
-      - Lesson ids: "L{worldNumber}-{lessonIndex}", unique within world; orders strictly ascending.
-      - Modules: 5–10 per lesson; orders strictly ascending; no duplicate ids/titles within a lesson.
-      - Keep strings short and student-friendly. Ensure module xp sums ≈ xpTotal (±20%).
-      - Return ONLY valid JSON (no prose, markdown, or trailing commas).
-
-      QUALITY RUBRIC
-      - Counts respected; ids/orders consistent; icons relevant; titles specific; subtitles outcome-based.
-      - XP sums roughly match xpTotal.
-      `.trim();
-
-      const apiKey = GEMINI_API_KEY.value();
-      if (!apiKey) throw new HttpsError("failed-precondition", "GEMINI_API_KEY missing");
-
-      const r = await generateJsonWithGemini(apiKey, prompt);
-      logger.info("Gemini model used (generateJourney)", { model: r.modelName });
-
-      try {
-        const parsed = JSON.parse(r.text || "");
-        journey = sanitizeJourney(parsed);
-      } catch (e) {
-        logger.error("JSON parse/sanitize failed (generateJourney)", {
-          preview: (r.text || "").slice(0, 1000),
-          message: e?.message,
-        });
-        throw new HttpsError("internal", "AI returned invalid or unsanitized JSON.");
-      }
+      throw new HttpsError("internal", "AI returned invalid or unsanitized JSON.");
     }
 
     const batch = db.batch();
-
     batch.set(journeyRef, {
       id: "default",
       topic: journey.topic,
@@ -459,7 +413,6 @@ exports.generateJourney = onCall({ secrets: [GEMINI_API_KEY] }, async (request) 
     });
 
     const worldIds = [];
-
     for (const w of journey.worlds || []) {
       const wRef = journeyRef.collection("worlds").doc(w.id);
       worldIds.push(w.id);
@@ -506,12 +459,7 @@ exports.generateJourney = onCall({ secrets: [GEMINI_API_KEY] }, async (request) 
     }
 
     await batch.commit();
-    return {
-      ok: true,
-      journeyId: "default",
-      worldIds,
-      mode: (request?.data?.noGemini ? "fake" : "gemini"),
-    };
+    return { ok: true, journeyId: "default", worldIds };
   } catch (err) {
     logger.error("generateJourney failed", { code: err?.code, message: err?.message, err: String(err) });
     if (err instanceof HttpsError) throw err;
@@ -541,30 +489,6 @@ exports.resetJourney = onCall(async (request) => {
   }
 
   return { ok: true, cleared: true };
-});
-
-// Debug helpers
-exports.getModuleDebug = onCall(async (request) => {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Login required.");
-
-  const { worldId = "W1", lessonId, moduleId } = request.data || {};
-  if (!lessonId || !moduleId) {
-    throw new HttpsError("invalid-argument", "lessonId and moduleId are required.");
-  }
-
-  const moduleRef = db.doc(`users/${uid}/journeys/default/worlds/${worldId}/lessons/${lessonId}/modules/${moduleId}`);
-  const snap = await moduleRef.get();
-  if (!snap.exists) throw new HttpsError("not-found", "Module not found.");
-  return { id: snap.id, ...snap.data() };
-});
-
-exports.storageProbe = onCall(async (request) => {
-  const uid = request.auth && request.auth.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Login required.");
-  const path = `journeys/${uid}/__probe.json`;
-  const url = await putJson(path, { ok: true, at: new Date().toISOString() });
-  return { ok: true, url, bucket: getBucket() && getBucket().name };
 });
 
 // Generate Module Content
@@ -619,74 +543,64 @@ exports.generateModule = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 300
   let succeeded = false;
   try {
     const prompt = `
-    You are generating SHORT, accurate module content as STRICT JSON only.
+You are generating SHORT, accurate module content as STRICT JSON only.
 
-    INPUT CONTEXT
-    Topic: ${JSON.stringify(topic)}
-    World: ${JSON.stringify({ id: world.id, title: world.title })}
-    Lesson: ${JSON.stringify({
-      id: lesson.id,
-      title: lesson.title,
-      subtitle: lesson.subtitle,
-      badge: lesson.badge,
-    })}
-    ModuleMeta: ${JSON.stringify({ id: moduleId, title: moduleData.title })}
+INPUT CONTEXT
+Topic: ${JSON.stringify(topic)}
+World: ${JSON.stringify({ id: world.id, title: world.title })}
+Lesson: ${JSON.stringify({
+  id: lesson.id,
+  title: lesson.title,
+  subtitle: lesson.subtitle,
+  badge: lesson.badge,
+})}
+ModuleMeta: ${JSON.stringify({ id: moduleId, title: moduleData.title })}
 
-    STUDENT LEVEL
-    - Absolute beginner. Explain plainly. One idea per sentence. Concrete examples.
+STUDENT LEVEL
+- Absolute beginner. Explain plainly. One idea per sentence. Concrete examples.
 
-    SCOPE GUARDRAILS
-    - Stay aligned to the Lesson/Module titles and the lesson.badge tech.
-    - If badge ∈ {"html","css","js","python","react","node","sql"} prefer examples in that tech.
-    - If badge is "all" or the module is conceptual, omit the code block.
-    - No frameworks or libraries unless implied by badge (e.g., "react" may use a function component).
-    - Keep examples minimal and standard. No external files, no network calls, no non-standard APIs.
-    - No external links, no images, no citations, no references to AI.
+SCOPE GUARDRAILS
+- Stay aligned to the Lesson/Module titles and the lesson.badge tech.
+- If badge ∈ {"html","css","js","python","react","node","sql"} prefer examples in that tech.
+- If badge is "all" or the module is conceptual, omit the code block.
+- No frameworks or libraries unless implied by badge.
+- Keep examples minimal and standard. No external files, no network calls, no non-standard APIs.
+- No external links, no images, no citations, no references to AI.
 
-    OUTPUT JSON SHAPE (no extra fields, no comments):
+OUTPUT JSON SHAPE (no extra fields, no comments):
+{
+  "title": string,
+  "blocks": [
     {
-      "title": string,            // ≤ 90 chars, mirrors ModuleMeta.title if sensible
-      "blocks": [
-        {
-          "type": "h1"|"h2"|"h3"|"p"|"ul"|"ol"|"code",
-          "text"?: string,        // for h*, p, code  (≤ 300 chars for p/h*, ≤ 800 for code)
-          "items"?: string[]      // for ul/ol (3–6 items, each ≤ 120 chars)
-        }
-      ]
+      "type": "h1"|"h2"|"h3"|"p"|"ul"|"ol"|"code",
+      "text"?: string,
+      "items"?: string[]
     }
+  ]
+}
 
-    CONTENT GUIDELINES
-    - 6–10 blocks total.
-    - Recommended structure (follow when reasonable):
-      1) h2 — restate the key skill in plain words
-      2) p  — why it matters (1–2 sentences)
-      3) ul — key concepts/terms (3–5 bullets)
-      4) code — one short example if relevant to badge (plain text, no backticks)
-      5) ol — step-by-step mini-task (3–5 steps the learner can do mentally)
-      6) p  — common pitfall or gotcha (≤ 2 sentences)
-      7) p or ul — quick recap or next tiny action
-    - Exactly one "code" block at most. If not clearly helpful, omit it.
-    - Use present tense, active voice. Avoid filler (e.g., "In this module," "we will").
-    - No placeholders like "your code here" or "TODO".
-    - No markdown syntax inside code. Plain text only.
+CONTENT GUIDELINES
+- 6–10 blocks total.
+- Recommended structure:
+  1) h2 — restate the key skill
+  2) p  — why it matters
+  3) ul — key concepts (3–5)
+  4) code — one short example if relevant
+  5) ol — mini task (3–5 steps)
+  6) p  — common pitfall
+  7) p/ul — recap or next action
+- Exactly one "code" block at most. If not clearly helpful, omit it.
+- Use present tense, active voice. Avoid filler.
+- No markdown backticks.
 
-    VALIDATION RULES (self-check before returning)
-    - Total blocks between 6 and 10.
-    - First block is h1 or h2 containing the main skill words.
-    - If code exists, it matches the lesson.badge tech:
-      - "html": a minimal tag snippet
-      - "css": a minimal rule set
-      - "js": a few lines of vanilla JS
-      - "python": a few lines of Python
-      - "react": a tiny function component (no external libs)
-      - "node": a tiny Node example without extra packages
-      - "sql": a single SELECT/CREATE/INSERT example
-    - No links, no images, no backticks, no extra fields.
-    - All strings within stated length limits.
+VALIDATION RULES
+- 6–10 blocks.
+- First block h1/h2.
+- If code exists, it matches lesson.badge tech.
+- No links/images/backticks/extra fields.
 
-    RETURN
-    - ONLY valid JSON. No prose before/after. No trailing commas.
-    `.trim();
+RETURN ONLY JSON.
+`.trim();
 
     const apiKey = GEMINI_API_KEY.value();
     if (!apiKey) throw new HttpsError("failed-precondition", "GEMINI_API_KEY missing");
@@ -700,9 +614,13 @@ exports.generateModule = onCall({ secrets: [GEMINI_API_KEY], timeoutSeconds: 300
     } catch (e) {
       logger.error("generateModule JSON parse failed", {
         preview: (r.text || "").slice(0, 1000),
+        message: e?.message,
+        name: e?.name,
+        stack: e?.stack?.slice(0, 1200),
       });
       throw new HttpsError("internal", "AI returned invalid JSON.");
     }
+
 
     const safe = sanitizeModuleContent(content, moduleData.title || moduleId, lesson.badge);
 
